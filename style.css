@@ -1,0 +1,16 @@
+:root{font-family:Inter,system-ui,Segoe UI,Arial,sans-serif;color:#17202a;background:#f5f7fb}
+*{box-sizing:border-box}body{margin:0}.wrap{max-width:1450px;margin:auto;padding:28px}
+header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}h1{margin:0;font-size:34px}header p{margin:6px 0;color:#667085}
+.privacy{background:#e9f8ef;color:#18794e;padding:8px 12px;border-radius:999px;font-size:13px}
+.card{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:18px;box-shadow:0 4px 18px #1018280a}
+.upload-grid{display:grid;grid-template-columns:1fr 1fr auto;gap:14px;align-items:end}.upload{display:flex;flex-direction:column;gap:8px}
+.upload input{padding:12px;border:1px dashed #98a2b3;border-radius:9px;background:#fafafa}.upload span{font-size:13px;color:#667085}
+button{border:0;border-radius:9px;padding:12px 18px;background:#1267d6;color:#fff;font-weight:700;cursor:pointer}button:disabled{opacity:.45;cursor:not-allowed}
+#message{margin:16px 0}.error{background:#fff0f0;color:#b42318;padding:12px;border-radius:9px}.info{background:#eef5ff;color:#175cd3;padding:12px;border-radius:9px}
+.hidden{display:none}.metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:18px 0}.metrics div{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:16px}
+.metrics b{display:block;font-size:28px}.metrics span{color:#667085}.toolbar{display:flex;align-items:center;justify-content:space-between}
+.table-wrap{overflow:auto;background:#fff;border:1px solid #e5e7eb;border-radius:12px}table{border-collapse:collapse;width:100%;font-size:13px}th,td{padding:10px;border-bottom:1px solid #eee;text-align:left;white-space:nowrap}th{background:#f8fafc;position:sticky;top:0}
+.pass{color:#087443;font-weight:800}.bad{color:#b42318;font-weight:800}.warn{color:#b54708;font-weight:800}
+details{background:#fff;border:1px solid #e5e7eb;border-radius:10px;margin:10px 0;padding:12px}summary{cursor:pointer;font-weight:700}
+.addr{color:#475467;margin:8px 0}.detail-table{margin-top:10px}.detail-table td,.detail-table th{white-space:normal}
+@media(max-width:800px){.upload-grid{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}header{align-items:flex-start;gap:10px;flex-direction:column}.wrap{padding:14px}}

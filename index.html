@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PO Checker</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <h1>PO Checker</h1>
+        <p>Excel vs Purchase Order PDF — runs in your browser.</p>
+      </div>
+      <span class="privacy">Local browser processing</span>
+    </header>
+
+    <section class="card upload-grid">
+      <label class="upload">
+        <strong>1. PO Source Excel</strong>
+        <input id="excelFile" type="file" accept=".xlsx,.xls">
+        <span id="excelName">Choose Excel file</span>
+      </label>
+      <label class="upload">
+        <strong>2. PO PDF files</strong>
+        <input id="pdfFiles" type="file" accept=".pdf" multiple>
+        <span id="pdfName">Choose PDF files</span>
+      </label>
+      <button id="checkBtn" disabled>Check PO</button>
+    </section>
+
+    <div id="message"></div>
+
+    <section id="results" class="hidden">
+      <div class="metrics">
+        <div><b id="mFiles">0</b><span>PDF files</span></div>
+        <div><b id="mUnique">0</b><span>Unique PO</span></div>
+        <div><b id="mPass">0</b><span>PASS</span></div>
+        <div><b id="mMismatch">0</b><span>MISMATCH</span></div>
+        <div><b id="mDup">0</b><span>DUPLICATE</span></div>
+      </div>
+
+      <div class="toolbar">
+        <h2>Summary</h2>
+        <button id="downloadBtn">Download Result Excel</button>
+      </div>
+      <div class="table-wrap">
+        <table id="summaryTable">
+          <thead><tr>
+            <th>PO</th><th>Vendor Name</th><th>Ship-To</th><th>Excel Qty</th><th>PDF Qty</th>
+            <th>Style/Color/Qty</th><th>PO ↔ Filename</th><th>Duplicate</th><th>Result</th><th>Issues</th>
+          </tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <h2>Details</h2>
+      <div id="details"></div>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
