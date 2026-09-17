@@ -1,8 +1,9 @@
-# PO Checker V4
-- Net FOB price check is **Excel-only** and runs immediately after Excel upload.
-- Groups the entire Excel by `Material`.
-- Same Material + one unique Net FOB price = PASS.
-- Same Material + multiple prices = MISMATCH.
-- Shows each Material, every price found, and the Purchasing Docs using each price.
-- FOB inconsistency is displayed separately and does not depend on PDF upload.
-- Main PO/PDF table now shows Material(s) and corrected column alignment.
+# PO Checker V4.2
+Keeps the V4 interface.
+
+Fix:
+- Selecting Source Excel always enables **Check Excel Only**.
+- Excel-only check does not require PDFs.
+- Clicking the button parses Excel and displays Material / Net FOB Price / Purchasing Docs.
+- Visible success/error message added.
+- PO Check remains Excel + PDF.

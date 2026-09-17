@@ -284,3 +284,49 @@ $("downloadFobBtn").onclick=()=>{
  for(const g of x.groups){for(const [price,pos] of [...g.prices.entries()].sort((a,b)=>a[0]-b[0])){rows.push({"Material":g.material,"Status":g.ok?"PASS":"MISMATCH","Net FOB Price":price,"Purchasing Doc(s)":[...pos].join(", ")})}}
  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Net FOB Check");XLSX.writeFile(wb,"Net_FOB_Price_Check.xlsx");
 };
+
+// V4.2: final isolated Excel-only binding
+(function(){
+  const fileInput=document.getElementById("excelFile");
+  const fileName=document.getElementById("excelName");
+  const excelBtn=document.getElementById("excelOnlyBtn");
+  const msg=document.getElementById("message");
+  const fobSec=document.getElementById("fobSection");
+  if(!fileInput||!excelBtn) return;
+
+  fileInput.addEventListener("change", function(){
+    const hasFile=this.files && this.files.length>0;
+    if(fileName) fileName.textContent=hasFile ? this.files[0].name : "Choose Excel file";
+    excelBtn.disabled=!hasFile;
+    excelBtn.classList.toggle("readybtn",hasFile);
+    if(fobSec) fobSec.classList.add("hidden");
+    if(msg) msg.innerHTML="";
+    ready();
+  });
+
+  excelBtn.addEventListener("click", async function(ev){
+    ev.preventDefault();
+    const file=fileInput.files && fileInput.files[0];
+    if(!file){
+      if(msg) msg.innerHTML='<div class="error">Please choose Source Excel first.</div>';
+      return;
+    }
+    excelBtn.disabled=true;
+    const oldText=excelBtn.textContent;
+    excelBtn.textContent="Checking Excel...";
+    if(msg) msg.innerHTML='<div class="info">Reading Excel and checking Net FOB price by Material...</div>';
+    try{
+      excelRows=await readExcel(file);
+      renderFob();
+      if(msg) msg.innerHTML='<div class="successmsg">✓ Excel check completed.</div>';
+      if(fobSec) fobSec.scrollIntoView({behavior:"smooth",block:"start"});
+    }catch(e){
+      console.error(e);
+      if(msg) msg.innerHTML='<div class="error">Excel Check Error: '+esc(e && e.message ? e.message : String(e))+'</div>';
+    }finally{
+      excelBtn.disabled=false;
+      excelBtn.textContent=oldText;
+      excelBtn.classList.add("readybtn");
+    }
+  });
+})();
