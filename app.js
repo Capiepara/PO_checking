@@ -51,11 +51,14 @@ function parsePDF(text,filename){
   const vendorBlock=one(/Vendor\s*Address\s*(.*?)\s*Information/is,text);
   const vendorParts=vendorBlock.split(/\s{2,}|\n/).map(cleanCol).filter(Boolean);
   let vendor=vendorParts[0]||"";
-  // PDF.js often flattens spacing. Known PO header boundaries keep this robust.
   const vraw=(text.match(/Vendor\s*Address\s*(.*?)\s*Information/is)||[])[1]||"";
-  const known=vraw.match(/(VIETNAM JIN CHANG SHOES CO|LI FENG YUEN FOOTWEAR \(CAMBODIA\)|SUPERIOR QUALITY WORLDWIDE INC\.|ROFU \(THAILAND\) LTD\.)/i);
-  if(known)vendor=known[1];
-  let vendorAddress=cleanCol(vraw.replace(vendor,""));
+  const known=vraw.match(/(VIETNAM JIN CHANG SHOES CO|LI FENG YUEN FOOTWEAR \(CAMBODIA\)|SUPERIOR QUALITY WORLDWIDE INC\.|ROFU \(THAILAND\) LTD\.|GOLDEN PROSPER FOOTWEAR CO\.,? LTD\.?)/i);
+  if(known) vendor=known[1];
+  else {
+    const boundary=vraw.search(/\b(?:LOT|NO\.?|NATIONAL\s+ROAD|ROAD|STREET|INDUSTRY|INDUSTRIAL|DISTRICT|PROVINCE|PHNOM\s+PENH|BANGKOK|VIETNAM|CAMBODIA|THAILAND)\b/i);
+    if(boundary>0) vendor=cleanCol(vraw.slice(0,boundary));
+  }
+  let vendorAddress=cleanCol(vraw.slice(vraw.toUpperCase().indexOf(vendor.toUpperCase())+vendor.length));
   const sraw=(text.match(/Shipping\s*Address\s*:?\s*(.*?)\s*Ship-To\s*:/is)||[])[1]||"";
   const shippingAddress=cleanCol(sraw);
 
@@ -131,4 +134,65 @@ $("checkBtn").onclick=async()=>{
     for(const f of $("pdfFiles").files){const text=await pdfText(f),pdf=parsePDF(text,f.name),ex=pdf.po_no?excelSummary(pdf.po_no):null,duplicate=!!seen[pdf.po_no];seen[pdf.po_no]=(seen[pdf.po_no]||0)+1;results.push({pdf,ex,duplicate,comp:compare(ex,pdf)})}
     $("message").innerHTML="";render()
   }catch(e){$("message").innerHTML=`<div class="error">${esc(e.message||e)}</div>`}
+};
+
+
+function badge(ok,labelOK="PASS",labelBad="MISMATCH"){return `<span class="badge ${ok?"ok":"bad"}">${ok?labelOK:labelBad}</span>`}
+function issueSummary(r){
+ const failed=r.comp.checks.filter(x=>!x.ok).map(x=>x.field);
+ const xs=[...failed,...r.comp.issues.map(x=>x.split(":")[0])];
+ return [...new Set(xs)].join(", ")||"—";
+}
+function getCheck(r,name){return r.comp.checks.find(x=>x.field===name)}
+function render(){
+ $("results").classList.remove("hidden");
+ $("mFiles").textContent=results.length;$("mUnique").textContent=new Set(results.map(r=>r.pdf.po_no)).size;
+ $("mPass").textContent=results.filter(r=>r.comp.status==="PASS").length;
+ $("mMismatch").textContent=results.filter(r=>r.comp.status!=="PASS").length;
+ $("mDup").textContent=results.filter(r=>r.duplicate).length;
+ renderRows();
+}
+function renderRows(){
+ const q=($("searchBox")?.value||"").toUpperCase(), f=$("filterResult")?.value||"All Results";
+ const tb=$("summaryTable").querySelector("tbody");tb.innerHTML="";
+ results.forEach((r,i)=>{
+   const hay=[r.pdf.po_no,r.pdf.vendor,r.pdf.filename].join(" ").toUpperCase();
+   if(q&&!hay.includes(q))return;
+   if(f==="PASS"&&r.comp.status!=="PASS")return;if(f==="MISMATCH"&&r.comp.status==="PASS")return;if(f==="DUPLICATE"&&!r.duplicate)return;
+   const vendor=getCheck(r,"Vendor"),ship=getCheck(r,"Ship-To"),fn=getCheck(r,"Filename"),itemOK=!r.comp.issues.length;
+   const tr=document.createElement("tr");
+   tr.innerHTML=`<td>${i+1}</td><td><b>${esc(r.pdf.po_no)}</b></td><td class="wraptext">${esc(r.pdf.vendor)}</td><td>${esc(r.pdf.ship_to)}</td><td>${r.ex?fmt(r.ex.qty):"—"}</td><td>${fmt(r.pdf.qty)}</td>
+   <td>${badge(!!vendor?.ok)}</td><td>${badge(!!ship?.ok)}</td><td>${badge(itemOK)}</td><td>${badge(!!fn?.ok)}</td>
+   <td>${r.duplicate?'<span class="badge warn">YES</span>':'<span class="badge neutral">NO</span>'}</td>
+   <td>${badge(r.comp.status==="PASS",r.comp.status,r.comp.status)}</td><td class="wraptext">${esc(issueSummary(r))}</td><td><button class="viewbtn" onclick="showCompare(${i})">View</button></td>`;
+   tb.appendChild(tr);
+ })
+}
+function showCompare(i){
+ const r=results[i],p=$("comparePanel"), vendor=getCheck(r,"Vendor"),ship=getCheck(r,"Ship-To"),fn=getCheck(r,"Filename"),qty=getCheck(r,"Total Qty");
+ const failures=[...r.comp.checks.filter(x=>!x.ok).map(x=>`<li><b>${esc(x.field)}:</b> ${esc(x.detail)}</li>`),...r.comp.issues.map(x=>`<li>${esc(x)}</li>`)].join("")||"<li>No blocking issues.</li>";
+ p.classList.remove("hidden");
+ p.innerHTML=`<div class="compare-title"><span>Detailed Comparison — PO ${esc(r.pdf.po_no)} — ${r.comp.status}</span><button class="viewbtn" onclick="document.getElementById('comparePanel').classList.add('hidden')">Close</button></div>
+ <div class="compare-grid">
+  <div class="compare-card"><h3>From Excel (Source)</h3>
+   <div class="kv"><label>PO Number</label><b>${esc(r.ex?.po_no||"—")}</b></div><div class="kv"><label>Vendor Name</label><span>${esc(r.ex?.vendor||"—")}</span></div>
+   <div class="kv"><label>Ship-To ID</label><span>${esc(r.ex?.ship_to||"—")}</span></div><div class="kv"><label>Open Qty</label><span>${r.ex?fmt(r.ex.qty):"—"}</span></div>
+  </div>
+  <div class="compare-card"><h3>From PDF</h3>
+   <div class="kv"><label>PO Number</label><b>${esc(r.pdf.po_no)}</b></div><div class="kv"><label>Vendor Name</label><span>${esc(r.pdf.vendor)}</span></div>
+   <div class="kv"><label>Vendor Address</label><span>${esc(r.pdf.vendor_address)}</span></div><div class="kv"><label>Ship-To ID</label><span>${esc(r.pdf.ship_to)}</span></div>
+   <div class="kv"><label>Shipping Address</label><span>${esc(r.pdf.shipping_address)}</span></div><div class="kv"><label>PDF Qty</label><span>${fmt(r.pdf.qty)}</span></div>
+   <div class="kv"><label>Filename</label><span>${esc(r.pdf.filename)}</span></div>
+  </div>
+  <div class="compare-card"><h3>Result: ${r.comp.status}</h3><div class="issuebox"><b>Issues found</b><ul>${failures}</ul></div>
+   <div class="kv"><label>Vendor</label><span>${badge(!!vendor?.ok)}</span></div><div class="kv"><label>Ship-To</label><span>${badge(!!ship?.ok)}</span></div>
+   <div class="kv"><label>Total Qty</label><span>${badge(!!qty?.ok)}</span></div><div class="kv"><label>Filename</label><span>${badge(!!fn?.ok)}</span></div>
+  </div>
+ </div>`;
+ p.scrollIntoView({behavior:"smooth",block:"start"});
+}
+$("searchBox").oninput=renderRows;$("filterResult").onchange=renderRows;
+$("clearBtn").onclick=()=>{location.reload()};
+$("downloadMismatchBtn").onclick=()=>{
+ const keep=results, subset=results.filter(r=>r.comp.status!=="PASS");results=subset;exportXlsx();results=keep;
 };

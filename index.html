@@ -1,66 +1,54 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PO Checker</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PO Checker V2</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
-  <main class="wrap">
-    <header>
-      <div>
-        <h1>PO Checker</h1>
-        <p>Excel vs Purchase Order PDF — runs in your browser.</p>
-      </div>
-      <span class="privacy">Local browser processing</span>
-    </header>
+<main class="shell">
+<header class="top">
+  <div class="brand"><div class="logo">PO</div><div><h1>PO Checker</h1><p>Compare PO PDFs with source Excel — fast and easy to review.</p></div></div>
+  <div class="local">▣ Local browser processing</div>
+</header>
 
-    <section class="card upload-grid">
-      <label class="upload">
-        <strong>1. PO Source Excel</strong>
-        <input id="excelFile" type="file" accept=".xlsx,.xls">
-        <span id="excelName">Choose Excel file</span>
-      </label>
-      <label class="upload">
-        <strong>2. PO PDF files</strong>
-        <input id="pdfFiles" type="file" accept=".pdf" multiple>
-        <span id="pdfName">Choose PDF files</span>
-      </label>
-      <button id="checkBtn" disabled>Check PO</button>
-    </section>
+<section class="steps">
+ <div class="step"><span class="num">1</span><div><b>Upload Source Excel</b><small>Select your PO source file.</small><label class="pick"><input id="excelFile" type="file" accept=".xlsx,.xls"><span id="excelName">Choose Excel file</span></label></div></div>
+ <div class="step"><span class="num">2</span><div><b>Upload PO PDFs</b><small>Select one or multiple PO files.</small><label class="pick"><input id="pdfFiles" type="file" accept=".pdf" multiple><span id="pdfName">Choose PDF files</span></label></div></div>
+ <div class="step run"><span class="num">3</span><div><b>Run Check</b><small>Compare all uploaded files.</small><button id="checkBtn" disabled>▶ Check PO</button></div></div>
+</section>
 
-    <div id="message"></div>
+<div id="message"></div>
+<section id="results" class="hidden">
+ <section class="metrics">
+  <div><span>▤</span><strong id="mFiles">0</strong><small>Total PDF files</small></div>
+  <div><span>≡</span><strong id="mUnique">0</strong><small>Unique PO</small></div>
+  <div class="green"><span>✓</span><strong id="mPass">0</strong><small>PASS</small></div>
+  <div class="red"><span>×</span><strong id="mMismatch">0</strong><small>MISMATCH</small></div>
+  <div class="amber"><span>!</span><strong id="mDup">0</strong><small>Duplicate</small></div>
+ </section>
 
-    <section id="results" class="hidden">
-      <div class="metrics">
-        <div><b id="mFiles">0</b><span>PDF files</span></div>
-        <div><b id="mUnique">0</b><span>Unique PO</span></div>
-        <div><b id="mPass">0</b><span>PASS</span></div>
-        <div><b id="mMismatch">0</b><span>MISMATCH</span></div>
-        <div><b id="mDup">0</b><span>DUPLICATE</span></div>
-      </div>
+ <section class="panel">
+  <div class="panel-head"><div><h2>Results</h2><p>Click View to see exactly why a PO passed or failed.</p></div>
+   <div class="filters"><input id="searchBox" placeholder="Search PO, vendor, filename..."><select id="filterResult"><option>All Results</option><option>PASS</option><option>MISMATCH</option><option>DUPLICATE</option></select></div>
+  </div>
+  <div class="tablewrap"><table id="summaryTable"><thead><tr>
+   <th>#</th><th>PO Number</th><th>Vendor Name</th><th>Ship-To</th><th>Excel Qty</th><th>PDF Qty</th>
+   <th>Vendor</th><th>Ship-To</th><th>Style/Color/Qty</th><th>Filename</th><th>Duplicate</th><th>Final Result</th><th>Issue</th><th></th>
+  </tr></thead><tbody></tbody></table></div>
+ </section>
 
-      <div class="toolbar">
-        <h2>Summary</h2>
-        <button id="downloadBtn">Download Result Excel</button>
-      </div>
-      <div class="table-wrap">
-        <table id="summaryTable">
-          <thead><tr>
-            <th>PO</th><th>Vendor Name</th><th>Ship-To</th><th>Excel Qty</th><th>PDF Qty</th>
-            <th>Style/Color/Qty</th><th>PO ↔ Filename</th><th>Duplicate</th><th>Result</th><th>Issues</th>
-          </tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
+ <section id="comparePanel" class="compare hidden"></section>
 
-      <h2>Details</h2>
-      <div id="details"></div>
-    </section>
-  </main>
-  <script src="app.js"></script>
-</body>
-</html>
+ <div class="actions">
+  <button id="downloadBtn">▣ Download Result Excel</button>
+  <button id="downloadMismatchBtn" class="secondary">Download Mismatch Only</button>
+  <button id="clearBtn" class="ghost">↻ Clear All</button>
+ </div>
+</section>
+<footer>PO Checker V2 &nbsp; | &nbsp; Runs locally in your browser &nbsp; | &nbsp; Selected files are not sent to an application server</footer>
+</main>
+<script src="app.js"></script>
+</body></html>
