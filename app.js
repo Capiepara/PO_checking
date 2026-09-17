@@ -126,7 +126,7 @@ function compare(ex,pdf){
     if(!compatible(x.color,p.description))warnings.push(`${x.material}: color text may be abbreviated — Excel "${x.color}" / PDF "${p.description}"`);
   }
   const em=new Set(ex.items.map(x=>x.material));for(const p of pdf.items)if(!em.has(p.material))issues.push(`${p.material}: present in PDF but not Excel`);
-  const fob=globalFobCheck(ex); return {status:checks.every(x=>x.ok)&&!issues.length&&fob.ok?"PASS":"MISMATCH",checks,issues,warnings,fob};
+  const fob=globalFobCheck(ex); return {status:checks.every(x=>x.ok)&&!issues.length?"PASS":"MISMATCH",checks,issues,warnings,fob};
 }
 
 function render(){
@@ -225,4 +225,52 @@ $("searchBox").oninput=renderRows;$("filterResult").onchange=renderRows;
 $("clearBtn").onclick=()=>{location.reload()};
 $("downloadMismatchBtn").onclick=()=>{
  const keep=results, subset=results.filter(r=>r.comp.status!=="PASS");results=subset;exportXlsx();results=keep;
+};
+
+
+function buildFobGroups(){
+ const col=getFobColumn(), gm=new Map(); if(!col)return {col:null,groups:[]};
+ for(const r of excelRows){
+   const mat=sval(r.Material).toUpperCase(), price=getFobValue(r), po=poVal(r["Purchasing Doc"]);
+   if(!mat||price===null)continue;
+   if(!gm.has(mat))gm.set(mat,new Map());
+   const pm=gm.get(mat); if(!pm.has(price))pm.set(price,new Set()); if(po)pm.get(price).add(po);
+ }
+ return {col,groups:[...gm.entries()].map(([material,prices])=>({material,prices,ok:prices.size<=1}))};
+}
+function renderFob(){
+ const x=buildFobGroups(), sec=$("fobSection"), tb=$("fobTable").querySelector("tbody"); sec.classList.remove("hidden");tb.innerHTML="";
+ if(!x.col){tb.innerHTML='<tr><td colspan="5"><span class="badge bad">Column "Net FOB price" not found</span></td></tr>';return}
+ $("fobMaterials").textContent=x.groups.length;$("fobPass").textContent=x.groups.filter(g=>g.ok).length;$("fobBad").textContent=x.groups.filter(g=>!g.ok).length;
+ $("fobGoodMsg").classList.toggle("hidden",x.groups.some(g=>!g.ok));
+ // mismatches first, then passes
+ x.groups.sort((a,b)=>Number(a.ok)-Number(b.ok)||a.material.localeCompare(b.material));
+ for(const g of x.groups){
+   const entries=[...g.prices.entries()].sort((a,b)=>a[0]-b[0]);
+   const prices=entries.map(([p])=>fmt(p)).join(" / ");
+   const allpos=[...new Set(entries.flatMap(([,ps])=>[...ps]))].join(", ");
+   const compare=entries.map(([p,ps])=>`<div class="pricegroup"><b>${fmt(p)}</b><span>PO: ${[...ps].join(", ")||"—"}</span></div>`).join("");
+   const tr=document.createElement("tr");tr.innerHTML=`<td><b>${esc(g.material)}</b></td><td>${badge(g.ok)}</td><td>${esc(prices)}</td><td class="wraptext">${esc(allpos)}</td><td class="wraptext">${compare}</td>`;tb.appendChild(tr);
+ }
+}
+function issueSummaryV4(r){
+ const failed=r.comp.checks.filter(x=>!x.ok).map(x=>x.field), xs=[...failed,...r.comp.issues.map(x=>x.split(":")[0])];
+ return [...new Set(xs)].join(", ")||"—";
+}
+function renderRowsV4(){
+ const q=($("searchBox")?.value||"").toUpperCase(),f=$("filterResult")?.value||"All Results",tb=$("summaryTable").querySelector("tbody");tb.innerHTML="";
+ results.forEach((r,i)=>{
+  const mats=(r.ex?.items||[]).map(x=>x.material).join(", "),hay=[r.pdf.po_no,mats,r.pdf.vendor,r.pdf.filename].join(" ").toUpperCase();
+  if(q&&!hay.includes(q))return;if(f==="PASS"&&r.comp.status!=="PASS")return;if(f==="MISMATCH"&&r.comp.status==="PASS")return;if(f==="DUPLICATE"&&!r.duplicate)return;
+  const vendor=getCheck(r,"Vendor"),ship=getCheck(r,"Ship-To"),fn=getCheck(r,"Filename"),itemOK=!r.comp.issues.length;
+  const tr=document.createElement("tr");tr.innerHTML=`<td>${i+1}</td><td><b>${esc(r.pdf.po_no)}</b></td><td class="wraptext">${esc(mats)}</td><td class="wraptext">${esc(r.pdf.vendor)}</td><td>${esc(r.pdf.ship_to)}</td><td>${r.ex?fmt(r.ex.qty):"—"}</td><td>${fmt(r.pdf.qty)}</td><td>${badge(!!vendor?.ok)}</td><td>${badge(!!ship?.ok)}</td><td>${badge(itemOK)}</td><td>${badge(!!fn?.ok)}</td><td>${r.duplicate?'<span class="badge warn">YES</span>':'<span class="badge neutral">NO</span>'}</td><td>${badge(r.comp.status==="PASS",r.comp.status,r.comp.status)}</td><td class="wraptext">${esc(issueSummaryV4(r))}</td><td><button class="viewbtn" onclick="showCompare(${i})">View</button></td>`;tb.appendChild(tr);
+ });
+}
+const oldRender=render; render=function(){oldRender();renderRowsV4();}
+$("searchBox").oninput=renderRowsV4;$("filterResult").onchange=renderRowsV4;
+$("excelFile").onchange=async()=>{
+ $("excelName").textContent=$("excelFile").files[0]?.name||"Choose Excel file";ready();
+ if(!$("excelFile").files.length){$("fobSection").classList.add("hidden");return}
+ try{excelRows=await readExcel($("excelFile").files[0]);renderFob();$("message").innerHTML=""}
+ catch(e){$("message").innerHTML=`<div class="error">${esc(e.message||e)}</div>`}
 };
