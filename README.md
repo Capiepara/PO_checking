@@ -1,13 +1,7 @@
-# PO Checker V2 — GitHub Pages
+# PO Checker V3 — GitHub Pages
 
-Improved dashboard UI for easier PO review.
+V3 adds a blocking **Net FOB price consistency check** across the entire uploaded Excel source.
 
-## V2 improvements
-- Separate status columns for Vendor, Ship-To, Style/Color/Qty, Filename and Final Result.
-- Search and result filters.
-- Click **View** for Excel vs PDF comparison.
-- Vendor name parser updated for GOLDEN PROSPER FOOTWEAR CO., LTD.
-- Download all results or mismatch-only results.
-- Browser-only processing; no Streamlit/Python server.
+For the same `Material`, all rows must have the same `Net FOB price`. If different prices are found, every uploaded PO containing that material is marked **MISMATCH** and the issue lists the material, prices, and related PO numbers.
 
-Replace your existing GitHub Pages files with `index.html`, `style.css`, `app.js`, `.nojekyll`, commit, and push.
+Replace your V2 files with these files, commit, and push.
