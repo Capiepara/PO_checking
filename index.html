@@ -1,31 +1,38 @@
-<!doctype html>
-<html lang="en"><head>
+<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>PO Checker V4</title><link rel="stylesheet" href="style.css">
+<title>PO Checker V5</title><link rel="stylesheet" href="style.css">
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head><body><main class="shell">
-<header class="top"><div class="brand"><div class="logo">PO</div><div><h1>PO Checker</h1><p>PO validation + Excel-only Net FOB price consistency check.</p></div></div><div class="local">▣ Local browser processing</div></header>
+<header class="top"><div class="brand"><div class="logo">PO</div><div><h1>PO Checker</h1><p>Choose Excel Check or PO Check.</p></div></div><div class="local">▣ Local browser processing</div></header>
+<nav class="tabs"><button id="tabExcel" class="tab active">📊 Excel Check</button><button id="tabPO" class="tab">📄 PO Check</button></nav>
 
-<section class="steps">
-<div class="step"><span class="num">1</span><div><b>Upload Source Excel</b><small>FOB check runs as soon as Excel is selected.</small><label class="pick"><input id="excelFile" type="file" accept=".xlsx,.xls"><span id="excelName">Choose Excel file</span></label></div></div>
-<div class="step"><span class="num">2</span><div><b>Upload PO PDFs</b><small>Optional for FOB check. Required for PO validation.</small><label class="pick"><input id="pdfFiles" type="file" accept=".pdf" multiple><span id="pdfName">Choose PDF files</span></label></div></div>
-<div class="step run"><span class="num">3</span><div><b>Run PO Check</b><small>Compare uploaded PDFs against Excel.</small><button id="checkBtn" disabled>▶ Check PO</button></div></div>
-</section><div id="message"></div>
-
-<section id="fobSection" class="panel hidden fobpanel">
-<div class="panel-head"><div><h2>💰 Net FOB Price Consistency <span class="excelonly">EXCEL ONLY</span></h2><p>Same Material should have one Net FOB price across the entire source Excel.</p></div>
-<div class="fobstats"><span>Materials checked <b id="fobMaterials">0</b></span><span class="goodtxt">PASS <b id="fobPass">0</b></span><span class="badtxt">MISMATCH <b id="fobBad">0</b></span></div></div>
-<div id="fobGoodMsg" class="fobgood hidden">✓ All materials use a consistent Net FOB price.</div>
-<div class="tablewrap"><table id="fobTable"><thead><tr><th>Material</th><th>Status</th><th>Net FOB Price</th><th>Purchasing Doc(s)</th><th>Price Comparison</th></tr></thead><tbody></tbody></table></div>
+<section id="excelMode">
+ <section class="modehero"><div><h2>📊 Excel Check</h2><p>Check Net FOB price consistency by Material. PDF files are not required.</p></div><span class="excelonly">EXCEL ONLY</span></section>
+ <section class="single-upload"><label class="pick"><input id="excelOnlyFile" type="file" accept=".xlsx,.xls"><span id="excelOnlyName">Choose Source Excel</span></label><button id="excelCheckBtn" disabled>Check Excel</button></section>
+ <div id="excelMessage"></div>
+ <section id="excelResults" class="hidden">
+  <section class="metrics three"><div><span>≡</span><strong id="xMaterials">0</strong><small>Materials checked</small></div><div class="green"><span>✓</span><strong id="xPass">0</strong><small>PASS</small></div><div class="red"><span>×</span><strong id="xBad">0</strong><small>MISMATCH</small></div></section>
+  <section class="panel"><div class="panel-head"><div><h2>Net FOB Price Consistency</h2><p>Same Material should have the same Net FOB price across the entire Excel source.</p></div><input id="fobSearch" placeholder="Search Material or PO..."></div>
+  <div class="tablewrap"><table id="excelFobTable"><thead><tr><th>Material</th><th>Status</th><th>Net FOB Price</th><th>Purchasing Doc(s)</th><th>Detailed Price Comparison</th></tr></thead><tbody></tbody></table></div></section>
+  <div class="actions"><button id="downloadFobBtn">▣ Download Excel Check Result</button><button id="clearExcelBtn" class="ghost">↻ Clear</button></div>
+ </section>
 </section>
 
-<section id="results" class="hidden">
-<section class="metrics"><div><span>▤</span><strong id="mFiles">0</strong><small>Total PDF files</small></div><div><span>≡</span><strong id="mUnique">0</strong><small>Unique PO</small></div><div class="green"><span>✓</span><strong id="mPass">0</strong><small>PASS</small></div><div class="red"><span>×</span><strong id="mMismatch">0</strong><small>MISMATCH</small></div><div class="amber"><span>!</span><strong id="mDup">0</strong><small>Duplicate</small></div></section>
-<section class="panel"><div class="panel-head"><div><h2>PO / PDF Results</h2><p>PDF comparison results. Net FOB details are shown separately above.</p></div><div class="filters"><input id="searchBox" placeholder="Search PO, material, vendor..."><select id="filterResult"><option>All Results</option><option>PASS</option><option>MISMATCH</option><option>DUPLICATE</option></select></div></div>
-<div class="tablewrap"><table id="summaryTable"><thead><tr><th>#</th><th>PO Number</th><th>Material(s)</th><th>Vendor Name</th><th>Ship-To</th><th>Excel Qty</th><th>PDF Qty</th><th>Vendor</th><th>Ship-To</th><th>Style/Color/Qty</th><th>Filename</th><th>Duplicate</th><th>Final Result</th><th>Issue</th><th></th></tr></thead><tbody></tbody></table></div></section>
-<section id="comparePanel" class="compare hidden"></section>
-<div class="actions"><button id="downloadBtn">▣ Download Result Excel</button><button id="downloadMismatchBtn" class="secondary">Download Mismatch Only</button><button id="clearBtn" class="ghost">↻ Clear All</button></div>
+<section id="poMode" class="hidden">
+ <section class="modehero"><div><h2>📄 PO Check</h2><p>Compare PO PDFs against your PO Source Excel.</p></div><span class="pdfmode">EXCEL + PDF</span></section>
+ <section class="steps">
+  <div class="step"><span class="num">1</span><div><b>Upload Source Excel</b><small>Select PO source file.</small><label class="pick"><input id="excelFile" type="file" accept=".xlsx,.xls"><span id="excelName">Choose Excel file</span></label></div></div>
+  <div class="step"><span class="num">2</span><div><b>Upload PO PDFs</b><small>Select one or multiple PO files.</small><label class="pick"><input id="pdfFiles" type="file" accept=".pdf" multiple><span id="pdfName">Choose PDF files</span></label></div></div>
+  <div class="step run"><span class="num">3</span><div><b>Run Check</b><small>Compare uploaded files.</small><button id="checkBtn" disabled>▶ Check PO</button></div></div>
+ </section><div id="message"></div>
+ <section id="results" class="hidden">
+  <section class="metrics"><div><span>▤</span><strong id="mFiles">0</strong><small>Total PDF files</small></div><div><span>≡</span><strong id="mUnique">0</strong><small>Unique PO</small></div><div class="green"><span>✓</span><strong id="mPass">0</strong><small>PASS</small></div><div class="red"><span>×</span><strong id="mMismatch">0</strong><small>MISMATCH</small></div><div class="amber"><span>!</span><strong id="mDup">0</strong><small>Duplicate</small></div></section>
+  <section class="panel"><div class="panel-head"><div><h2>PO / PDF Results</h2><p>Click View to see detailed comparison.</p></div><div class="filters"><input id="searchBox" placeholder="Search PO, material, vendor..."><select id="filterResult"><option>All Results</option><option>PASS</option><option>MISMATCH</option><option>DUPLICATE</option></select></div></div>
+  <div class="tablewrap"><table id="summaryTable"><thead><tr><th>#</th><th>PO Number</th><th>Material(s)</th><th>Vendor Name</th><th>Ship-To</th><th>Excel Qty</th><th>PDF Qty</th><th>Vendor</th><th>Ship-To</th><th>Style/Color/Qty</th><th>Filename</th><th>Duplicate</th><th>Final Result</th><th>Issue</th><th></th></tr></thead><tbody></tbody></table></div></section>
+  <section id="comparePanel" class="compare hidden"></section>
+  <div class="actions"><button id="downloadBtn">▣ Download Result Excel</button><button id="downloadMismatchBtn" class="secondary">Download Mismatch Only</button><button id="clearBtn" class="ghost">↻ Clear All</button></div>
+ </section>
 </section>
-<footer>PO Checker V4 &nbsp; | &nbsp; Excel-only FOB check + PDF validation &nbsp; | &nbsp; Local browser processing</footer>
+<footer>PO Checker V5 &nbsp; | &nbsp; Excel Check and PO Check are independent &nbsp; | &nbsp; Local browser processing</footer>
 </main><script src="app.js"></script></body></html>

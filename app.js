@@ -274,3 +274,53 @@ $("excelFile").onchange=async()=>{
  try{excelRows=await readExcel($("excelFile").files[0]);renderFob();$("message").innerHTML=""}
  catch(e){$("message").innerHTML=`<div class="error">${esc(e.message||e)}</div>`}
 };
+
+
+let excelOnlyRows=[], excelFobGroups=[];
+
+function switchMode(mode){
+ $("excelMode").classList.toggle("hidden",mode!=="excel");$("poMode").classList.toggle("hidden",mode!=="po");
+ $("tabExcel").classList.toggle("active",mode==="excel");$("tabPO").classList.toggle("active",mode==="po");
+}
+$("tabExcel").onclick=()=>switchMode("excel");$("tabPO").onclick=()=>switchMode("po");
+
+function fobColFor(rows){
+ if(!rows.length)return null;const keys=Object.keys(rows[0]);
+ return keys.find(k=>norm(k)==="NET FOB PRICE")||keys.find(k=>norm(k).includes("NET FOB")&&norm(k).includes("PRICE"))||null;
+}
+function buildExcelOnlyGroups(rows){
+ const col=fobColFor(rows);if(!col)throw Error('Column "Net FOB price" was not found in Excel.');
+ const gm=new Map();
+ for(const r of rows){
+  const mat=sval(r.Material).toUpperCase();if(!mat)continue;
+  const raw=sval(r[col]).replace(/[$,\s]/g,"");if(raw==="")continue;const price=Number(raw);if(!Number.isFinite(price))continue;
+  const po=poVal(r["Purchasing Doc"]);if(!gm.has(mat))gm.set(mat,new Map());const pm=gm.get(mat);
+  if(!pm.has(price))pm.set(price,new Set());if(po)pm.get(price).add(po);
+ }
+ return [...gm.entries()].map(([material,prices])=>({material,prices,ok:prices.size<=1})).sort((a,b)=>Number(a.ok)-Number(b.ok)||a.material.localeCompare(b.material));
+}
+function renderExcelOnly(){
+ const q=($("fobSearch").value||"").toUpperCase(),tb=$("excelFobTable").querySelector("tbody");tb.innerHTML="";
+ $("xMaterials").textContent=excelFobGroups.length;$("xPass").textContent=excelFobGroups.filter(g=>g.ok).length;$("xBad").textContent=excelFobGroups.filter(g=>!g.ok).length;
+ for(const g of excelFobGroups){
+  const entries=[...g.prices.entries()].sort((a,b)=>a[0]-b[0]),allPO=[...new Set(entries.flatMap(([,ps])=>[...ps]))];
+  if(q&&!g.material.includes(q)&&!allPO.join(" ").includes(q))continue;
+  const details=entries.map(([price,pos])=>`<div class="pricegroup ${g.ok?"":"pricebad"}"><b>${fmt(price)}</b><span>PO: ${[...pos].join(", ")||"—"}</span></div>`).join("");
+  const tr=document.createElement("tr");tr.innerHTML=`<td><b>${esc(g.material)}</b></td><td>${badge(g.ok)}</td><td>${esc(entries.map(([p])=>fmt(p)).join(" / "))}</td><td class="wraptext">${esc(allPO.join(", "))}</td><td class="wraptext">${details}</td>`;tb.appendChild(tr);
+ }
+}
+$("excelOnlyFile").onchange=()=>{$("excelOnlyName").textContent=$("excelOnlyFile").files[0]?.name||"Choose Source Excel";$("excelCheckBtn").disabled=!$("excelOnlyFile").files.length};
+$("excelCheckBtn").onclick=async()=>{
+ $("excelMessage").innerHTML='<div class="info">Checking Excel…</div>';
+ try{excelOnlyRows=await readExcel($("excelOnlyFile").files[0]);excelFobGroups=buildExcelOnlyGroups(excelOnlyRows);$("excelResults").classList.remove("hidden");$("excelMessage").innerHTML="";renderExcelOnly()}
+ catch(e){$("excelMessage").innerHTML=`<div class="error">${esc(e.message||e)}</div>`}
+};
+$("fobSearch").oninput=renderExcelOnly;
+$("clearExcelBtn").onclick=()=>{excelOnlyRows=[];excelFobGroups=[];$("excelOnlyFile").value="";$("excelOnlyName").textContent="Choose Source Excel";$("excelCheckBtn").disabled=true;$("excelResults").classList.add("hidden")};
+$("downloadFobBtn").onclick=()=>{
+ const rows=[];for(const g of excelFobGroups){for(const [price,pos] of [...g.prices.entries()].sort((a,b)=>a[0]-b[0]))rows.push({"Material":g.material,"Status":g.ok?"PASS":"MISMATCH","Net FOB price":price,"Purchasing Doc(s)":[...pos].join(", ")})}
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Net FOB Check");XLSX.writeFile(wb,"Net_FOB_Price_Check.xlsx")
+};
+
+// PO mode: normal Excel selection only loads source; it does not show Excel-only FOB section.
+$("excelFile").onchange=()=>{$("excelName").textContent=$("excelFile").files[0]?.name||"Choose Excel file";ready()};
