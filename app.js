@@ -228,52 +228,59 @@ $("downloadMismatchBtn").onclick=()=>{
 };
 
 
-
-let excelOnlyRows=[], excelFobGroups=[];
-
-function switchMode(mode){
- $("excelMode").classList.toggle("hidden",mode!=="excel");$("poMode").classList.toggle("hidden",mode!=="po");
- $("tabExcel").classList.toggle("active",mode==="excel");$("tabPO").classList.toggle("active",mode==="po");
-}
-$("tabExcel").onclick=()=>switchMode("excel");$("tabPO").onclick=()=>switchMode("po");
-
-function fobColFor(rows){
- if(!rows.length)return null;const keys=Object.keys(rows[0]);
- return keys.find(k=>norm(k)==="NET FOB PRICE")||keys.find(k=>norm(k).includes("NET FOB")&&norm(k).includes("PRICE"))||null;
-}
-function buildExcelOnlyGroups(rows){
- const col=fobColFor(rows);if(!col)throw Error('Column "Net FOB price" was not found in Excel.');
- const gm=new Map();
- for(const r of rows){
-  const mat=sval(r.Material).toUpperCase();if(!mat)continue;
-  const raw=sval(r[col]).replace(/[$,\s]/g,"");if(raw==="")continue;const price=Number(raw);if(!Number.isFinite(price))continue;
-  const po=poVal(r["Purchasing Doc"]);if(!gm.has(mat))gm.set(mat,new Map());const pm=gm.get(mat);
-  if(!pm.has(price))pm.set(price,new Set());if(po)pm.get(price).add(po);
+function buildFobGroups(){
+ const col=getFobColumn(), gm=new Map(); if(!col)return {col:null,groups:[]};
+ for(const r of excelRows){
+   const mat=sval(r.Material).toUpperCase(), price=getFobValue(r), po=poVal(r["Purchasing Doc"]);
+   if(!mat||price===null)continue;
+   if(!gm.has(mat))gm.set(mat,new Map());
+   const pm=gm.get(mat); if(!pm.has(price))pm.set(price,new Set()); if(po)pm.get(price).add(po);
  }
- return [...gm.entries()].map(([material,prices])=>({material,prices,ok:prices.size<=1})).sort((a,b)=>Number(a.ok)-Number(b.ok)||a.material.localeCompare(b.material));
+ return {col,groups:[...gm.entries()].map(([material,prices])=>({material,prices,ok:prices.size<=1}))};
 }
-function renderExcelOnly(){
- const q=($("fobSearch").value||"").toUpperCase(),tb=$("excelFobTable").querySelector("tbody");tb.innerHTML="";
- $("xMaterials").textContent=excelFobGroups.length;$("xPass").textContent=excelFobGroups.filter(g=>g.ok).length;$("xBad").textContent=excelFobGroups.filter(g=>!g.ok).length;
- for(const g of excelFobGroups){
-  const entries=[...g.prices.entries()].sort((a,b)=>a[0]-b[0]),allPO=[...new Set(entries.flatMap(([,ps])=>[...ps]))];
-  if(q&&!g.material.includes(q)&&!allPO.join(" ").includes(q))continue;
-  const details=entries.map(([price,pos])=>`<div class="pricegroup ${g.ok?"":"pricebad"}"><b>${fmt(price)}</b><span>PO: ${[...pos].join(", ")||"—"}</span></div>`).join("");
-  const tr=document.createElement("tr");tr.innerHTML=`<td><b>${esc(g.material)}</b></td><td>${badge(g.ok)}</td><td>${esc(entries.map(([p])=>fmt(p)).join(" / "))}</td><td class="wraptext">${esc(allPO.join(", "))}</td><td class="wraptext">${details}</td>`;tb.appendChild(tr);
+function renderFob(){
+ const x=buildFobGroups(), sec=$("fobSection"), tb=$("fobTable").querySelector("tbody"); sec.classList.remove("hidden");tb.innerHTML="";
+ if(!x.col){tb.innerHTML='<tr><td colspan="5"><span class="badge bad">Column "Net FOB price" not found</span></td></tr>';return}
+ $("fobMaterials").textContent=x.groups.length;$("fobPass").textContent=x.groups.filter(g=>g.ok).length;$("fobBad").textContent=x.groups.filter(g=>!g.ok).length;
+ $("fobGoodMsg").classList.toggle("hidden",x.groups.some(g=>!g.ok));
+ // mismatches first, then passes
+ x.groups.sort((a,b)=>Number(a.ok)-Number(b.ok)||a.material.localeCompare(b.material));
+ for(const g of x.groups){
+   const entries=[...g.prices.entries()].sort((a,b)=>a[0]-b[0]);
+   const prices=entries.map(([p])=>fmt(p)).join(" / ");
+   const allpos=[...new Set(entries.flatMap(([,ps])=>[...ps]))].join(", ");
+   const compare=entries.map(([p,ps])=>`<div class="pricegroup"><b>${fmt(p)}</b><span>PO: ${[...ps].join(", ")||"—"}</span></div>`).join("");
+   const tr=document.createElement("tr");tr.innerHTML=`<td><b>${esc(g.material)}</b></td><td>${badge(g.ok)}</td><td>${esc(prices)}</td><td class="wraptext">${esc(allpos)}</td><td class="wraptext">${compare}</td>`;tb.appendChild(tr);
  }
 }
-$("excelOnlyFile").onchange=()=>{$("excelOnlyName").textContent=$("excelOnlyFile").files[0]?.name||"Choose Source Excel";$("excelCheckBtn").disabled=!$("excelOnlyFile").files.length};
-$("excelCheckBtn").onclick=async()=>{
- $("excelMessage").innerHTML='<div class="info">Checking Excel…</div>';
- try{excelOnlyRows=await readExcel($("excelOnlyFile").files[0]);excelFobGroups=buildExcelOnlyGroups(excelOnlyRows);$("excelResults").classList.remove("hidden");$("excelMessage").innerHTML="";renderExcelOnly()}
- catch(e){$("excelMessage").innerHTML=`<div class="error">${esc(e.message||e)}</div>`}
+function issueSummaryV4(r){
+ const failed=r.comp.checks.filter(x=>!x.ok).map(x=>x.field), xs=[...failed,...r.comp.issues.map(x=>x.split(":")[0])];
+ return [...new Set(xs)].join(", ")||"—";
+}
+function renderRowsV4(){
+ const q=($("searchBox")?.value||"").toUpperCase(),f=$("filterResult")?.value||"All Results",tb=$("summaryTable").querySelector("tbody");tb.innerHTML="";
+ results.forEach((r,i)=>{
+  const mats=(r.ex?.items||[]).map(x=>x.material).join(", "),hay=[r.pdf.po_no,mats,r.pdf.vendor,r.pdf.filename].join(" ").toUpperCase();
+  if(q&&!hay.includes(q))return;if(f==="PASS"&&r.comp.status!=="PASS")return;if(f==="MISMATCH"&&r.comp.status==="PASS")return;if(f==="DUPLICATE"&&!r.duplicate)return;
+  const vendor=getCheck(r,"Vendor"),ship=getCheck(r,"Ship-To"),fn=getCheck(r,"Filename"),itemOK=!r.comp.issues.length;
+  const tr=document.createElement("tr");tr.innerHTML=`<td>${i+1}</td><td><b>${esc(r.pdf.po_no)}</b></td><td class="wraptext">${esc(mats)}</td><td class="wraptext">${esc(r.pdf.vendor)}</td><td>${esc(r.pdf.ship_to)}</td><td>${r.ex?fmt(r.ex.qty):"—"}</td><td>${fmt(r.pdf.qty)}</td><td>${badge(!!vendor?.ok)}</td><td>${badge(!!ship?.ok)}</td><td>${badge(itemOK)}</td><td>${badge(!!fn?.ok)}</td><td>${r.duplicate?'<span class="badge warn">YES</span>':'<span class="badge neutral">NO</span>'}</td><td>${badge(r.comp.status==="PASS",r.comp.status,r.comp.status)}</td><td class="wraptext">${esc(issueSummaryV4(r))}</td><td><button class="viewbtn" onclick="showCompare(${i})">View</button></td>`;tb.appendChild(tr);
+ });
+}
+const oldRender=render; render=function(){oldRender();renderRowsV4();}
+$("searchBox").oninput=renderRowsV4;$("filterResult").onchange=renderRowsV4;
+$("excelFile").onchange=()=>{
+ $("excelName").textContent=$("excelFile").files[0]?.name||"Choose Excel file";
+ $("excelOnlyBtn").disabled=!$("excelFile").files.length;
+ $("fobSection").classList.add("hidden");
+ ready();
 };
-$("fobSearch").oninput=renderExcelOnly;
-$("clearExcelBtn").onclick=()=>{excelOnlyRows=[];excelFobGroups=[];$("excelOnlyFile").value="";$("excelOnlyName").textContent="Choose Source Excel";$("excelCheckBtn").disabled=true;$("excelResults").classList.add("hidden")};
+$("excelOnlyBtn").onclick=async()=>{
+ $("message").innerHTML='<div class="info">Checking Excel…</div>';
+ try{excelRows=await readExcel($("excelFile").files[0]);renderFob();$("message").innerHTML=""}
+ catch(e){$("message").innerHTML=`<div class="error">${esc(e.message||e)}</div>`}
+};
 $("downloadFobBtn").onclick=()=>{
- const rows=[];for(const g of excelFobGroups){for(const [price,pos] of [...g.prices.entries()].sort((a,b)=>a[0]-b[0]))rows.push({"Material":g.material,"Status":g.ok?"PASS":"MISMATCH","Net FOB price":price,"Purchasing Doc(s)":[...pos].join(", ")})}
- const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Net FOB Check");XLSX.writeFile(wb,"Net_FOB_Price_Check.xlsx")
+ const x=buildFobGroups(), rows=[];
+ for(const g of x.groups){for(const [price,pos] of [...g.prices.entries()].sort((a,b)=>a[0]-b[0])){rows.push({"Material":g.material,"Status":g.ok?"PASS":"MISMATCH","Net FOB Price":price,"Purchasing Doc(s)":[...pos].join(", ")})}}
+ const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(rows),"Net FOB Check");XLSX.writeFile(wb,"Net_FOB_Price_Check.xlsx");
 };
-
-// PO mode: normal Excel selection only loads source; it does not show Excel-only FOB section.
-$("excelFile").onchange=()=>{$("excelName").textContent=$("excelFile").files[0]?.name||"Choose Excel file";ready()};
